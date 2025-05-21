@@ -1,30 +1,26 @@
+# chatbot/models.py
+
 from django.db import models
+from django.utils import timezone
+
+class Employee(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
 
 class LeaveRequest(models.Model):
     LEAVE_TYPE_CHOICES = [
         ('full', 'Full Day'),
         ('half', 'Half Day'),
     ]
-
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     leave_type = models.CharField(max_length=10, choices=LEAVE_TYPE_CHOICES)
-    leave_date = models.DateField(null=True, blank=True)
-    leave_time = models.TimeField(null=True, blank=True)
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    leave_date = models.DateField(default=timezone.now)
+    leave_time = models.TimeField(null=True, blank=True)  # only for half day
+    requested_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"{self.leave_type.capitalize()} Leave on {self.leave_date or self.leave_time}"
-class AnonymousFeedback(models.Model):
-    message = models.TextField()
-    submitted_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Feedback on {self.submitted_at}"
-
-class TravelForm(models.Model):
-    destination = models.CharField(max_length=255)
-    date = models.DateField()
-    purpose = models.CharField(max_length=500)
-    submitted_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.destination} on {self.date}"
+        time_str = self.leave_time.strftime('%H:%M') if self.leave_time else 'N/A'
+        return f"{self.employee.name} - {self.leave_type} leave on {self.leave_date} at {time_str}"

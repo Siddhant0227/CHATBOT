@@ -2,7 +2,10 @@ import os
 import requests
 
 def classify_intent(msg):
-    msg = msg.lower()
+    """
+    Simple keyword-based intent classifier for HR chatbot.
+    """
+    msg = msg.lower().strip()
     if any(kw in msg for kw in ['full day', 'day off']):
         return 'leave_full'
     elif any(kw in msg for kw in ['half day']):
@@ -17,7 +20,11 @@ def classify_intent(msg):
         return 'anonymous_feedback'
     return 'unknown'
 
+
 def ai_response(user_message):
+    """
+    Calls Groq's LLaMA 3 API to get AI-generated response.
+    """
     try:
         api_key = os.environ.get("GROQ_API_KEY")
         headers = {

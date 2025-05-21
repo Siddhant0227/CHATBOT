@@ -1,58 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>HR Chatbot</title>
   {% load static %}
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
 </head>
 <body>
 
   <div class="chat-container">
     <div class="messages" id="messages">
-      <div class="message bot-message">Hello! I’m your HR assistant. How can I help you today?</div>
+      <div class="message bot-message">
+        Hello! I’m your HR assistant. How can I help you today?
+      </div>
     </div>
 
+    <!-- Feature buttons -->
     <div class="button-group" id="feature-buttons">
-      <button class="btn-feature" onclick="askLeaveType()">Apply Leave</button>
+      <button class="btn-feature" onclick="askUserName()">Start Leave Application</button>
       <button class="btn-feature" onclick="sendMessageFromOption('check status')">Check Status</button>
-      <button class="btn-feature" onclick="sendMessageFromOption('Help me fill the travel claim form')">Travel Claim</button>
-      <button class="btn-feature" onclick="sendMessageFromOption('How do I raise a concern?')">Support FAQ</button>
-      <button class="btn-feature" onclick="sendMessageFromOption('I want to share feedback anonymously')">Anonymous Feedback</button>
+      <button class="btn-feature" onclick="sendMessageFromOption('faq')">Support FAQ</button>
     </div>
 
+    <!-- Go back -->
+    <div id="go-back-container" style="display:none; margin-bottom:10px;">
+      <button id="go-back-btn" class="btn-go-back">⬅️ Go Back</button>
+    </div>
+
+    <!-- FAQ buttons -->
+    <div id="faq-buttons" class="button-group" style="display:none;"></div>
+
+    <!-- User name input -->
+    <div id="user-name-container" style="display:none; margin-bottom: 10px;">
+      <input type="text" id="user_name" placeholder="Please enter your name" />
+      <button class="btn-submit" onclick="submitUserName()">Submit Name</button>
+    </div>
+
+    <!-- Leave type choices -->
     <div class="button-group" id="choice-buttons" style="display:none;">
       <button class="btn-choice" onclick="sendChoice('full day leave')">Full Day</button>
       <button class="btn-choice" onclick="sendChoice('half day leave')">Half Day</button>
     </div>
 
+    <!-- Date picker -->
     <div class="date-picker" id="calendar" style="display:none;">
       <input id="leave_date" placeholder="Select date" />
       <button class="btn-submit" onclick="submitLeaveDate()">Submit Date</button>
     </div>
 
+    <!-- Time picker -->
     <div class="time-picker" id="timepicker" style="display:none;">
       <input id="leave_time" placeholder="Select time" />
       <button class="btn-submit" onclick="submitLeaveTime()">Submit Time</button>
     </div>
 
-    <div class="travel-form" id="travel-form" style="display:none; padding:1rem;">
-      <input type="text" id="travel_destination" placeholder="Enter destination" style="width:100%; padding:1rem; margin-bottom:0.5rem; border-radius:1rem;">
-      <input type="date" id="travel_date" style="width:100%; padding:1rem; margin-bottom:0.5rem; border-radius:1rem;">
-      <input type="text" id="travel_purpose" placeholder="Purpose of travel" style="width:100%; padding:1rem; margin-bottom:0.5rem; border-radius:1rem;">
-      <button class="btn-submit" onclick="submitTravelForm()">Submit Travel Form</button>
-    </div>
-
-    <div class="feedback-form" id="feedback-form" style="display:none; padding:1rem;">
-      <textarea id="feedback_input" placeholder="Type your anonymous feedback..." rows="4" style="width:100%; border-radius:1rem; padding:1rem;"></textarea>
-      <button class="btn-feature" onclick="submitFeedback()">Submit Feedback</button>
-    </div>
-
-    <form id="chat-form" class="message-form">
-      <input type="text" id="user_message" placeholder="Type your message…" autocomplete="off" name="user_message">
+    <!-- User input form -->
+    <form id="chat-form" class="message-form" style="margin-top: 10px;">
+      <input
+        type="text"
+        id="user_message"
+        placeholder="Type your message…"
+        autocomplete="off"
+        name="user_message"
+      />
       <button type="submit" class="btn-send">Send</button>
     </form>
   </div>
@@ -61,4 +74,3 @@
   <script src="{% static 'js/chatbot.js' %}"></script>
 </body>
 </html>
-

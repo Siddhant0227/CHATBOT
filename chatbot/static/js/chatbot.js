@@ -1,173 +1,205 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const csrftoken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const messagesDiv = document.getElementById('messages');
-    const chatForm = document.getElementById('chat-form');
-    const userInput = document.getElementById('user_message');
+  const csrftoken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const messagesDiv = document.getElementById('messages');
+  const chatForm = document.getElementById('chat-form');
+  const userInput = document.getElementById('user_message');
+  const goBackContainer = document.getElementById('go-back-container');
+  const goBackBtn = document.getElementById('go-back-btn');
 
-    flatpickr("#leave_date", { dateFormat: "Y-m-d", minDate: "today" });
-    flatpickr("#leave_time", {
-        enableTime: true,
-        noCalendar: true,
-        dateFormat: "H:i",
-        time_24hr: true
+  const historyStack = [];
+  window.userName = null; // global to hold user name
+
+  flatpickr("#leave_date", { dateFormat: "Y-m-d", minDate: "today" });
+  flatpickr("#leave_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true,
+  });
+
+  function appendMessage(text, isUser = false, isSuccess = false) {
+    const msg = document.createElement('div');
+    msg.className = `message ${isUser ? 'user-message' : 'bot-message'} ${isSuccess ? 'success' : ''}`;
+    msg.innerHTML = text;
+    messagesDiv.appendChild(msg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function showGoBackIfNeeded() {
+    goBackContainer.style.display = historyStack.length > 1 ? 'block' : 'none';
+  }
+
+  function hideAllOptionalUI() {
+    ['calendar', 'timepicker', 'choice-buttons', 'faq-buttons', 'user-name-container'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
     });
+  }
 
-    function appendMessage(text, isUser = false, isSuccess = false) {
-        const msg = document.createElement('div');
-        msg.className = `message ${isUser ? 'user-message' : 'bot-message'} ${isSuccess ? 'success' : ''}`;
-        msg.innerHTML = text;
-        messagesDiv.appendChild(msg);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  async function sendMessageToServer(message, addToHistory = true) {
+    appendMessage(message, true);
+    if (addToHistory) historyStack.push(message);
+    showGoBackIfNeeded();
+
+    const loading = document.createElement('div');
+    loading.className = 'message bot-message loading';
+    loading.innerHTML = `<div class="dot-flashing"><div></div><div></div><div></div></div>`;
+    messagesDiv.appendChild(loading);
+
+    try {
+      const res = await fetch('/chatbot/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrftoken,
+        },
+        body: `user_message=${encodeURIComponent(message)}`,
+      });
+
+      const data = await res.json();
+      loading.remove();
+      appendMessage(data.response);
+
+      if (data.action) {
+        handleAction(data.action);
+      } else {
+        hideAllOptionalUI();
+        document.getElementById('feature-buttons').style.display = 'flex';
+      }
+    } catch (err) {
+      loading.remove();
+      console.error(err);
+      appendMessage("Sorry, there was an error. Please try again.");
+    }
+  }
+
+  goBackBtn.addEventListener('click', () => {
+    if (historyStack.length <= 1) return;
+
+    historyStack.pop();
+    const prevMessage = historyStack[historyStack.length - 1];
+
+    messagesDiv.innerHTML = '';
+    appendMessage("Hello! I’m your HR assistant. How can I help you today?");
+
+    hideAllOptionalUI();
+    document.getElementById('feature-buttons').style.display = 'flex';
+
+    // Reset username if you want to clear on going back
+    // window.userName = null;
+
+    sendMessageToServer(prevMessage, false);
+    showGoBackIfNeeded();
+  });
+
+  function showFAQOptions() {
+    const faqButtonsDiv = document.getElementById('faq-buttons');
+    faqButtonsDiv.innerHTML = `
+      <button class="btn-feature" onclick="sendMessageFromOption('What’s the dress code?')">💼 What’s the dress code?</button>
+      <button class="btn-feature" onclick="sendMessageFromOption('How do I raise a concern?')">🧾 How do I raise a concern?</button>
+      <button class="btn-feature" onclick="sendMessageFromOption('What are the benefits?')">🏖️ What are the benefits?</button>
+      <button class="btn-feature" onclick="hideFAQOptions()">Back</button>
+    `;
+    faqButtonsDiv.style.display = 'flex';
+    document.getElementById('feature-buttons').style.display = 'none';
+  }
+
+  function hideFAQOptions() {
+    document.getElementById('faq-buttons').style.display = 'none';
+    document.getElementById('feature-buttons').style.display = 'flex';
+  }
+
+  function handleAction(action) {
+    hideAllOptionalUI();
+
+    if (action === 'show_calendar') {
+      const cal = document.getElementById('calendar');
+      if (cal) cal.style.display = 'block';
+      document.getElementById('feature-buttons').style.display = 'none';
+    } else if (action === 'show_timepicker') {
+      const tp = document.getElementById('timepicker');
+      if (tp) tp.style.display = 'block';
+      document.getElementById('feature-buttons').style.display = 'none';
+    } else if (action === 'choose_leave_type') {
+      const choices = document.getElementById('choice-buttons');
+      if (choices) choices.style.display = 'flex';
+      document.getElementById('feature-buttons').style.display = 'none';
+    } else if (action === 'faq_mode') {
+      showFAQOptions();
+      return;
     }
 
-    async function sendMessageToServer(message) {
-        appendMessage(message, true);
+    if (action !== 'faq_mode') {
+      document.getElementById('feature-buttons').style.display = 'flex';
+    }
+  }
 
-        const loading = document.createElement('div');
-        loading.className = 'message bot-message loading';
-        loading.innerHTML = `<div class="dot-flashing"><div></div><div></div><div></div></div>`;
-        messagesDiv.appendChild(loading);
+  window.sendMessageFromOption = (opt) => sendMessageToServer(opt);
 
-        try {
-            const res = await fetch('/chatbot/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrftoken,
-                },
-                body: `user_message=${encodeURIComponent(message)}`
-            });
+  window.askUserName = () => {
+    hideAllOptionalUI();
+    document.getElementById('feature-buttons').style.display = 'none';
 
-            const data = await res.json();
-            loading.remove();
-            appendMessage(data.response);
-            if (data.action) handleAction(data.action);
-        } catch (err) {
-            loading.remove();
-            console.error(err);
-            appendMessage("Sorry, there was an error. Please try again.");
-        }
+    const nameContainer = document.getElementById('user-name-container');
+    if (nameContainer) nameContainer.style.display = 'block';
+  };
+
+  window.submitUserName = () => {
+    const input = document.getElementById('user_name');
+    const name = input.value.trim();
+    if (!name) {
+      alert("Please enter your name.");
+      return;
     }
 
-    function handleAction(action) {
-        document.getElementById('calendar').style.display = 'none';
-        document.getElementById('timepicker').style.display = 'none';
-        document.getElementById('choice-buttons').style.display = 'none';
-        document.getElementById('feedback-form').style.display = 'none';
-        document.getElementById('travel-form').style.display = 'none';
+    document.getElementById('user-name-container').style.display = 'none';
+    window.userName = name;
 
-        if (action === 'show_calendar') {
-            document.getElementById('calendar').style.display = 'block';
-        } else if (action === 'show_timepicker') {
-            document.getElementById('timepicker').style.display = 'block';
-        } else if (action === 'choose_leave_type') {
-            document.getElementById('choice-buttons').style.display = 'flex';
-        } else if (action === 'faq_mode') {
-            appendMessage(`
-                <ul>
-                    <li>💼 What’s the dress code?</li>
-                    <li>🧾 How do I raise a concern?</li>
-                    <li>🏖️ What are the benefits?</li>
-                </ul>
-            `);
-        } else if (action === 'start_travel_form') {
-            document.getElementById('travel-form').style.display = 'block';
-        } else if (action === 'show_feedback_form') {
-            document.getElementById('feedback-form').style.display = 'block';
-        }
+    appendMessage(`Name recorded as: <b>${name}</b>`, true, true);
+
+    // Show leave type choices after name input
+    const choices = document.getElementById('choice-buttons');
+    if (choices) choices.style.display = 'flex';
+
+    sendMessageToServer(`My name is ${name}. I want to apply for leave.`);
+  };
+
+  window.sendChoice = (choice) => {
+    const choices = document.getElementById('choice-buttons');
+    if (choices) choices.style.display = 'none';
+
+    const message = window.userName ? `${window.userName} requests ${choice}` : choice;
+    sendMessageToServer(message);
+  };
+
+  window.submitLeaveDate = () => {
+    const d = document.getElementById('leave_date').value;
+    if (d) {
+      document.getElementById('calendar').style.display = 'none';
+      document.getElementById('leave_date').value = '';
+      sendMessageToServer(`date ${d}`);
     }
+  };
 
-    window.sendMessageFromOption = (opt) => sendMessageToServer(opt);
+  window.submitLeaveTime = () => {
+    const t = document.getElementById('leave_time').value;
+    if (t) {
+      document.getElementById('timepicker').style.display = 'none';
+      document.getElementById('leave_time').value = '';
+      sendMessageToServer(`time ${t}`);
+    }
+  };
 
-    window.askLeaveType = () => {
-        document.getElementById('feature-buttons').style.display = 'none';
-        document.getElementById('choice-buttons').style.display = 'flex';
-        sendMessageToServer("leave options");
-    };
+  chatForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const msg = userInput.value.trim();
+    if (msg) {
+      sendMessageToServer(msg);
+      userInput.value = '';
+    }
+  });
 
-    window.sendChoice = (choice) => {
-        document.getElementById('choice-buttons').style.display = 'none';
-        sendMessageToServer(choice);
-    };
-
-    window.submitLeaveDate = () => {
-        const d = document.getElementById('leave_date').value;
-        if (d) {
-            document.getElementById('calendar').style.display = 'none';
-            document.getElementById('leave_date').value = '';
-            sendMessageToServer(`date ${d}`);
-        }
-    };
-
-    window.submitLeaveTime = () => {
-        const t = document.getElementById('leave_time').value;
-        if (t) {
-            document.getElementById('timepicker').style.display = 'none';
-            document.getElementById('leave_time').value = '';
-            sendMessageToServer(`time ${t}`);
-        }
-    };
-
-    window.submitFeedback = async () => {
-        const feedback = document.getElementById('feedback_input').value.trim();
-        if (!feedback) return appendMessage("❌ Feedback cannot be empty.");
-
-        const formData = new FormData();
-        formData.append('feedback', feedback);
-
-        const res = await fetch('/submit-feedback/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-            },
-            body: formData
-        });
-
-        const data = await res.json();
-        appendMessage(data.response);  // Show success or failure response
-        document.getElementById('feedback_input').value = '';  // Clear the feedback input field
-        document.getElementById('feedback-form').style.display = 'none';  // Hide feedback form after submission
-
-        // Optionally, you can re-enable the features (like the feature buttons) after feedback submission
-        document.getElementById('feature-buttons').style.display = 'block'; 
-    };
-
-    window.submitTravelForm = async () => {
-        const dest = document.getElementById('travel_destination').value;
-        const date = document.getElementById('travel_date').value;
-        const purpose = document.getElementById('travel_purpose').value;
-
-        if (!(dest && date && purpose)) {
-            return appendMessage("❌ Please fill all fields in the travel form.");
-        }
-
-        const formData = new FormData();
-        formData.append('destination', dest);
-        formData.append('date', date);
-        formData.append('purpose', purpose);
-
-        const res = await fetch('/submit-travel-form/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-            },
-            body: formData
-        });
-
-        const data = await res.json();
-        appendMessage(data.response);
-        document.getElementById('travel-form').style.display = 'none';
-        document.getElementById('travel_destination').value = '';
-        document.getElementById('travel_date').value = '';
-        document.getElementById('travel_purpose').value = '';
-    };
-
-    chatForm.addEventListener('submit', e => {
-        e.preventDefault();
-        const msg = userInput.value.trim();
-        if (msg) {
-            sendMessageToServer(msg);
-            userInput.value = '';
-        }
-    });
+  appendMessage("Hello! I’m your HR assistant. How can I help you today?");
+  historyStack.push("hello");
+  showGoBackIfNeeded();
 });
